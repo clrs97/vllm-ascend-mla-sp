@@ -123,6 +123,8 @@ from vllm_ascend.utils import (ACL_FORMAT_FRACTAL_ND, ACL_FORMAT_FRACTAL_NZ,
                                lmhead_tp_enable, vllm_version_is)
 from vllm_ascend.worker.npu_input_batch import CachedRequestState, InputBatch
 
+from vllm_ascend.mla_dp_rebalancing import pre_forward_for_dp_rebalancing, post_forward_for_dp_rebalancing
+
 if TYPE_CHECKING:
     import xgrammar as xgr  # type: ignore[import-untyped]
     from vllm.v1.core.sched.output import SchedulerOutput
@@ -1577,12 +1579,16 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                                              intermediate_tensors,
                                              inputs_embeds):
         assert self.model is not None
+        if get_ascend_config().enable_mla_prefill_dp_rebalancing:
+            input_ids = pre_forward_for_dp_rebalancing(input_ids)
         hidden_states = self.model(
             input_ids=input_ids,
             positions=positions,
             intermediate_tensors=intermediate_tensors,
             inputs_embeds=inputs_embeds,
         )
+        if get_ascend_config().enable_mla_prefill_dp_rebalancing:
+            hidden_states = post_forward_for_dp_rebalancing(hidden_states)
 
         forward_context = get_forward_context()
         if forward_context.cudagraph_runtime_mode == CUDAGraphMode.FULL:
@@ -2308,10 +2314,14 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                                           is_torchair_compile, input_ids,
                                           positions, attn_metadata, num_tokens,
                                           intermediate_tensors, inputs_embeds):
+        if get_ascend_config().enable_mla_prefill_dp_rebalancing:
+            input_ids = pre_forward_for_dp_rebalancing(input_ids)
         hidden_states = self.model(input_ids=input_ids,
                                    positions=positions,
                                    intermediate_tensors=intermediate_tensors,
                                    inputs_embeds=inputs_embeds)
+        if get_ascend_config().enable_mla_prefill_dp_rebalancing:
+            hidden_states = post_forward_for_dp_rebalancing(hidden_states)
         if self.drafter and self.drafter.name == SpecDcodeType.EAGLE3:
             hidden_states, _ = hidden_states
         else:
