@@ -16,7 +16,7 @@ def dispose_tensor(x: torch.Tensor):
 class LayerMetadata:
     """Metadata for a layer.
     """
-    layer_idx: int # The index of the layer.
+    layer_idx: int  # The index of the layer.
     layer: LinearBase  # The layer object.
     post_method: Callable[[
         torch.nn.Module
@@ -56,7 +56,7 @@ class SeriesMetadata:
         # This method only needs to be called once per series.
         if self.shared_windows:
             return
-        
+
         self.layers.sort(key=lambda x: x.layer_idx)
         self.num_layers = len(self.layers)
         assert self.num_layers > 0, "No layers in the series"
@@ -212,13 +212,14 @@ def register_layer_to_shared_weight_series(
     series = _series_dict[series_name]
     assert layer.quant_method is not None
     layer_idx = extract_layer_index(layer.prefix)
-    series.layers.append(LayerMetadata(
-        layer_idx=layer_idx,
-        layer=layer,
-        post_method=layer.quant_method.process_weights_after_loading,
-        weight=layer.weight,
-        window_idx=-1,
-    ))
+    series.layers.append(
+        LayerMetadata(
+            layer_idx=layer_idx,
+            layer=layer,
+            post_method=layer.quant_method.process_weights_after_loading,
+            weight=layer.weight,
+            window_idx=-1,
+        ))
     # Discard the original `process_weights_after_loading` method such that it won't be called by others.
     layer.quant_method.process_weights_after_loading = lambda layer: None
     # When the layer not intended to be stored in this device, dispose the tensor and skip weight loading.

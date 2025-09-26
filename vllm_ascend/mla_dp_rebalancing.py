@@ -7,7 +7,8 @@ from torch import nn
 from vllm.distributed.parallel_state import get_dp_group, get_tp_group
 from vllm.forward_context import get_forward_context
 
-from vllm_ascend.distributed.parallel_state import get_ascend_config, get_mla_dp_rebalancing_world_group
+from vllm_ascend.distributed.parallel_state import (
+    get_ascend_config, get_mla_dp_rebalancing_world_group)
 
 
 @dataclass
@@ -15,17 +16,17 @@ class RebalancingContext:
     num_padded_global_tokens: int
     num_tokens_per_dp: int
     num_tokens_per_device: int
-    start_token_of_dp: list[int] # no pad, original
-    end_token_of_dp: list[int] # no pad, original
+    start_token_of_dp: list[int]  # no pad, original
+    end_token_of_dp: list[int]  # no pad, original
     global_tokens: torch.Tensor
-    dp_sp_start_token: list[int] # i * num_tokens_per_dp
-    dp_sp_end_token: list[int] # (i + 1) * num_tokens_per_dp
-    device_sp_start_token: list[int] # i * num_tokens_per_device
-    device_sp_end_token: list[int] # (i + 1) * num_tokens_per_device
+    dp_sp_start_token: list[int]  # i * num_tokens_per_dp
+    dp_sp_end_token: list[int]  # (i + 1) * num_tokens_per_dp
+    device_sp_start_token: list[int]  # i * num_tokens_per_device
+    device_sp_end_token: list[int]  # (i + 1) * num_tokens_per_device
     local_dp: int
     local_device: int
-    local_device_sp_start_token_within_dp: int # tp_group.rank_in_group * num_tokens_per_device
-    local_device_sp_end_token_within_dp: int # (tp_group.rank_in_group + 1) * num_tokens_per_device
+    local_device_sp_start_token_within_dp: int  # tp_group.rank_in_group * num_tokens_per_device
+    local_device_sp_end_token_within_dp: int  # (tp_group.rank_in_group + 1) * num_tokens_per_device
     local_device_total_receive_len: int
     input_split_sizes: list[int]
     output_split_sizes: list[int]
@@ -66,7 +67,7 @@ def set_mla_dp_rebalancing_context(input_ids: torch.Tensor):
         num_input_tokens = attn_metadata.num_actual_tokens
     else:
         num_input_tokens = 1
-    
+
     input_ids = input_ids[:num_input_tokens]
 
     rebalancing_metadata = torch.cat([
@@ -76,7 +77,8 @@ def set_mla_dp_rebalancing_context(input_ids: torch.Tensor):
         nn.functional.pad(input_ids,
                           (0, max_num_tokens_across_dp - num_input_tokens)),
     ]).unsqueeze(0)
-    rebalancing_metadata_across_dp = dp_group.all_gather(rebalancing_metadata, 0)
+    rebalancing_metadata_across_dp = dp_group.all_gather(
+        rebalancing_metadata, 0)
     for i in range(dp_group.world_size):
         row = rebalancing_metadata_across_dp[i]
         feature_enabled = bool(row[0] > 0)
@@ -120,7 +122,8 @@ def set_mla_dp_rebalancing_context(input_ids: torch.Tensor):
     local_dp = dp_group.rank_in_group
     local_device = sp_world_group.rank_in_group
     local_device_sp_start_token_within_dp = tp_group.rank_in_group * num_tokens_per_device
-    local_device_sp_end_token_within_dp = (tp_group.rank_in_group + 1) * num_tokens_per_device
+    local_device_sp_end_token_within_dp = (tp_group.rank_in_group +
+                                           1) * num_tokens_per_device
 
     tp_size = tp_group.world_size
     input_split_sizes = []
@@ -160,7 +163,8 @@ def set_mla_dp_rebalancing_context(input_ids: torch.Tensor):
     if dp_metadata is not None:
         dp_metadata.max_tokens_across_dp_cpu.fill_(num_tokens_per_dp)
         for i in range(dp_group.world_size):
-            dp_metadata.cu_tokens_across_dp_cpu[i] = (i + 1) * num_tokens_per_dp
+            dp_metadata.cu_tokens_across_dp_cpu[i] = (i +
+                                                      1) * num_tokens_per_dp
 
     _mla_dp_rebalancing_context = RebalancingContext(
         num_padded_global_tokens=num_padded_global_tokens,
@@ -175,7 +179,8 @@ def set_mla_dp_rebalancing_context(input_ids: torch.Tensor):
         device_sp_end_token=device_sp_end_token,
         local_dp=local_dp,
         local_device=local_device,
-        local_device_sp_start_token_within_dp=local_device_sp_start_token_within_dp,
+        local_device_sp_start_token_within_dp=
+        local_device_sp_start_token_within_dp,
         local_device_sp_end_token_within_dp=local_device_sp_end_token_within_dp,
         local_device_total_receive_len=local_device_total_receive_len,
         input_split_sizes=input_split_sizes,
@@ -187,15 +192,16 @@ def set_mla_dp_rebalancing_context(input_ids: torch.Tensor):
 def calc_div_ceil(up: int, down: int) -> int:
     return (up + down - 1) // down
 
+
 def pre_forward_for_dp_rebalancing(input_ids: torch.Tensor) -> torch.Tensor:
     set_mla_dp_rebalancing_context(input_ids)
     context = get_mla_dp_rebalancing_context()
     if context is None:
         return input_ids
     local_dp = context.local_dp
-    return context.global_tokens[
-        context.dp_sp_start_token[local_dp]:context.
-        dp_sp_end_token[local_dp]]
+    return context.global_tokens[context.dp_sp_start_token[local_dp]:context.
+                                 dp_sp_end_token[local_dp]]
+
 
 def recover_output(hidden_states: torch.Tensor) -> torch.Tensor:
     context = get_mla_dp_rebalancing_context()
@@ -205,7 +211,10 @@ def recover_output(hidden_states: torch.Tensor) -> torch.Tensor:
     local_dp_end_token = context.end_token_of_dp[local_dp]
     local_dp_sp_start_token = context.dp_sp_start_token[local_dp]
     local_dp_sp_end_token = context.dp_sp_end_token[local_dp]
-    send = hidden_states[:max(0, min(local_dp_sp_end_token, context.end_token_of_dp[-1]) - local_dp_sp_start_token)]
+    send = hidden_states[:max(
+        0,
+        min(local_dp_sp_end_token, context.end_token_of_dp[-1]) -
+        local_dp_sp_start_token)]
     dp_group = get_dp_group()
     if dp_group.world_size == 1:
         return send
@@ -238,12 +247,14 @@ def recover_output(hidden_states: torch.Tensor) -> torch.Tensor:
     )
     return output
 
-def post_forward_for_dp_rebalancing(hidden_states: torch.Tensor) -> torch.Tensor:
+
+def post_forward_for_dp_rebalancing(
+        hidden_states: torch.Tensor) -> torch.Tensor:
     context = get_mla_dp_rebalancing_context()
     if context is None:
         return hidden_states
     output = recover_output(hidden_states)
     if output.shape[0] < context.num_output_tokens:
-        output = nn.functional.pad(output,
-                    (0, 0, 0, context.num_output_tokens - output.shape[0]))
+        output = nn.functional.pad(
+            output, (0, 0, 0, context.num_output_tokens - output.shape[0]))
     return output

@@ -46,7 +46,8 @@ def get_mla_dp_rebalancing_world_group() -> GroupCoordinator:
 
 
 def get_mla_dp_rebalancing_o_shared_group() -> GroupCoordinator:
-    assert _MLA_DP_REBALANCING_O_SHARED is not None, ("o_proj shared weight group for MLA DP rebalancing is not initialized")
+    assert _MLA_DP_REBALANCING_O_SHARED is not None, (
+        "o_proj shared weight group for MLA DP rebalancing is not initialized")
     return _MLA_DP_REBALANCING_O_SHARED
 
 
@@ -129,14 +130,16 @@ def init_ascend_model_parallel(parallel_config: ParallelConfig, ):
         global _MLA_DP_REBALANCING_WORLD
         global _MLA_DP_REBALANCING_O_SHARED
         group_ranks = [list(range(torch.distributed.get_world_size()))]
-        _MLA_DP_REBALANCING_WORLD = init_model_parallel_group(group_ranks,
-                                                              get_world_group().local_rank,
-                                                              backend,
-                                                              group_name="mla_dp_rebalancing_world")
-        _MLA_DP_REBALANCING_O_SHARED = init_model_parallel_group(group_ranks,
-                                                                 get_world_group().local_rank,
-                                                                 backend,
-                                                                 group_name="mla_dp_rebalancing_o_shared")
+        _MLA_DP_REBALANCING_WORLD = init_model_parallel_group(
+            group_ranks,
+            get_world_group().local_rank,
+            backend,
+            group_name="mla_dp_rebalancing_world")
+        _MLA_DP_REBALANCING_O_SHARED = init_model_parallel_group(
+            group_ranks,
+            get_world_group().local_rank,
+            backend,
+            group_name="mla_dp_rebalancing_o_shared")
 
 
 def get_mlp_tensor_model_parallel_world_size():

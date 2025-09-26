@@ -108,6 +108,8 @@ from vllm_ascend.eplb.core.eplb_device_transfer_loader import \
 from vllm_ascend.eplb.core.eplb_worker import EplbProcess
 from vllm_ascend.eplb.eplb_updator import EplbUpdator
 from vllm_ascend.eplb.utils import model_register
+from vllm_ascend.mla_dp_rebalancing import (post_forward_for_dp_rebalancing,
+                                            pre_forward_for_dp_rebalancing)
 from vllm_ascend.models.layers.mla import AscendMultiHeadLatentAttention
 from vllm_ascend.multistream.ms_split import compute_split_seq_index
 from vllm_ascend.platform import NPUPlatform
@@ -122,8 +124,6 @@ from vllm_ascend.utils import (ACL_FORMAT_FRACTAL_ND, ACL_FORMAT_FRACTAL_NZ,
                                get_ascend_soc_version, is_310p,
                                lmhead_tp_enable, vllm_version_is)
 from vllm_ascend.worker.npu_input_batch import CachedRequestState, InputBatch
-
-from vllm_ascend.mla_dp_rebalancing import pre_forward_for_dp_rebalancing, post_forward_for_dp_rebalancing
 
 if TYPE_CHECKING:
     import xgrammar as xgr  # type: ignore[import-untyped]
